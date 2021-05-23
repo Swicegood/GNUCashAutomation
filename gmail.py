@@ -8,7 +8,7 @@ from google.oauth2.credentials import Credentials
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
-def main():
+def grab_emails(search_str):
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
@@ -33,18 +33,21 @@ def main():
     service = build('gmail', 'v1', credentials=creds)
 
     # Call the Gmail API
-    results = service.users().messages().list(userId='me', q='419.25',maxResults=10).execute()
+    results = service.users().messages().list(userId='me', q=search_str, maxResults=10).execute()
     messages = results.get('messages', [])
 
     if not messages:
         print('No messages found.')
     else:
+        emailmatches = []
         print('Messages:')
         for message in messages:
-            mailmesg = service.users().messages().get(userId='me', id=message['id']).execute()
-            print(mailmesg['snippet'])
+            emailmatches.append(service.users().messages().get(userId='me', id=message['id']).execute())
+            emailmatches[-1]['confidence'] = 7
+            print(emailmatches[-1]['snippet'])
 
-if __name__ == '__main__':
-    main()
+    return emailmatches
 
 
+if __name__ == "__main__":
+    grab_emails("419.25")
