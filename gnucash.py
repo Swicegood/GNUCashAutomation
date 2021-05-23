@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
 from email_matcher import ematcher
+from parse import parse_paypal
 
 emailmatches = []
 transaction = { "account": "PayPal",
