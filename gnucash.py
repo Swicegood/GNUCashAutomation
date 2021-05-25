@@ -3,6 +3,8 @@ from tkinter import ttk
 from tkinter import filedialog
 from email_matcher import ematcher
 from parse import parse_paypal
+from filedialogs import getfile
+import functools
 
 emailmatches = []
 transaction = { "account": "PayPal",
@@ -76,6 +78,60 @@ frame.grid_rowconfigure(0, weight=1)
 
 next.grid(column=0, row=0, sticky="e s")
 frame.grid_propagate(0)
+
+filename = getfile()
+transactions = parse_paypal(filename)
+
+def changecolor(event):
+    # Makes all rows white
+    for frame in rowframes:
+        for k in frame.winfo_children():
+            k.config(style="BW.TLabel")
+    # Makes clicked row highlighted
+    for widg in event.widget.master.winfo_children():
+        widg.config(style="BLUE.TLabel")
+
+def start_ematcher(event, trxn):
+    changecolor(event)
+    ematcher(emailmatches, trxn, paypal_txns, amazon_txns)
+    pass
+
+i = 0
+info = 7
+rowframes = []    
+comments = "New, UNBALANCED (need account to transfer "
+for line in transactions:
+    if i == 0:
+        mystyle = "BLUE.TLabel"
+    else:
+        mystyle = "BW.TLabel"
+    rowframe = ttk.Frame(listframe)
+    rowframe.grid(row=2 + i, columnspan=5, sticky="n s w e")
+    datelbl1 = ttk.Label(rowframe, text=line["date"], style=mystyle)
+    datelbl1.grid(column=0, row=0, sticky="w e")
+    datelbl1.bind("<Button 1>", changecolor)
+    amountlbl1 = ttk.Label(rowframe, text=line["amount"], style=mystyle)
+    amountlbl1.grid(column=1, row=0, sticky="w e")
+    amountlbl1.bind("<Button 1>", changecolor)
+    desclbl1 = ttk.Label(rowframe, text=line["desc"], style=mystyle)
+    desclbl1.grid(column=2, row=0, sticky="w e")
+    desclbl1.bind("<Button 1>", changecolor)
+    infolbl1 = ttk.Label(rowframe, text=str(info), style=mystyle)
+    infolbl1.grid(column=3, row=0, sticky="w e")
+    infolbl1.bind("<Button 1>", functools.partial(start_ematcher, trxn=line))
+    comlbl1 = ttk.Label(rowframe, text=comments+line["amount"]+")!", style=mystyle)
+    comlbl1.grid(column=4, row=0, sticky="w e")
+    comlbl1.bind("<Button 1>", changecolor)
+    rowframe.grid_columnconfigure(0, weight=1)
+    rowframe.grid_columnconfigure(1, weight=1)
+    rowframe.grid_columnconfigure(2, weight=2)
+    rowframe.grid_columnconfigure(3, weight=1)
+    rowframe.grid_columnconfigure(4, weight=5)
+    rowframes.append(rowframe)
+    rowframe.propagate(0)
+    i += 1
+
 root.mainloop()
+
 
 

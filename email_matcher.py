@@ -94,3 +94,17 @@ def ematcher(emailmatches, transaction, paypal_txns, amazon_txns):
 
     t.wait_window(t)
     return value
+
+
+if __name__ == "__main__":
+    emailmatches = []
+    transaction = { "account": "PayPal",
+                    "date": "05/3/2021", 
+                    "amount": "419.25", 
+                    "desc": "eBay Purchase", 
+                    "memo": "", 
+                    "balanced":True }
+    paypal_txns = []
+    amazon_txns = []
+    real = Tk()
+    ematcher(emailmatches, transaction, paypal_txns, amazon_txns)
