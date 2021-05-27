@@ -35,11 +35,11 @@ def grab_emails(search_str):
     # Call the Gmail API
     results = service.users().messages().list(userId='me', q=search_str, maxResults=10).execute()
     messages = results.get('messages', [])
+    emailmatches = []    
 
     if not messages:
         print('No messages found.')
     else:
-        emailmatches = []
         print('Messages:')
         for message in messages:
             emailmatches.append(service.users().messages().get(userId='me', id=message['id']).execute())

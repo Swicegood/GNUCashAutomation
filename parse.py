@@ -1,22 +1,26 @@
 import csv
+import decimal
 from typing_extensions import ParamSpecArgs
 from filedialogs import getfile
 from ofxparse import OfxParser
-from decimal import Decimal
+from decimal import Decimal, getcontext
 import pdfreader
 from pdfreader import SimplePDFViewer
+
+getcontext().prec=10
 
 def parse_paypal(filename):
     parsed_data = []
     with open(filename, 'r') as data:
         
         for line in csv.DictReader(data):
-            print(line)
             line["account"] = "PayPal"
             line["date"] = line.pop("Date")
-            line["amount"] = line.pop("Amount")
+            line["amount"] = Decimal(line.pop("Amount"))
             line["memo"] = ""
-            line["desc"] = line.pop("Name") 
+            line["desc"] = line.pop("Name")    
+            line["id"] = ""    
+            print(line) 
             parsed_data.append(line)
     return parsed_data
 
@@ -27,9 +31,10 @@ def parse_amex(filename):
         for line in csv.DictReader(data):
             line["account"] = "Amex"
             line["date"] = line.pop("Date")
-            line["amount"] = line.pop("Amount")
+            line["amount"] = Decimal(line.pop("Amount"))
             line["memo"] = ""
             line["desc"] = line.pop("Description") 
+            line["id"] = ""
             print(line)
             parsed_data.append(line)
     return parsed_data
@@ -47,10 +52,11 @@ def parse_xfx(filename):
             line["account"] = "Checking"
         else:
             line["account"] = account.type
-        line["date"] = transaction.date.strftime("%d %b, %Y")
-        line["amount"] = transaction.amount
+        line["date"] = transaction.date.strftime("%d/%m/%Y")
+        line["amount"] = transaction.amount.quantize(Decimal('.00'))
         line["desc"] = transaction.payee
         line["memo"] = transaction.checknum
+        line["id"] = ""
         print(line)
         parsed_data.append(line)
     return parsed_data
@@ -73,7 +79,8 @@ def parse_pdf(filename):
                 line["date"] = pageofstrings[i*8 + 0]
                 line["desc"] = pageofstrings[i*8 + 1]
                 line["id"] = pageofstrings[i*8 + 2][5:]
-                line["amount"] = pageofstrings[i*8 + 5]
+                line["amount"] = Decimal(pageofstrings[i*8 + 5])
+                line["memo"] = ""
                 print(line)
                 parsed_data.append(line)
     return parsed_data
@@ -85,7 +92,12 @@ def parse_amazon(filename):
         for line in csv.DictReader(data):
             line["account"] = "Amazon"
             line["id"] = line.pop("\ufefforder id")
-            line["amount"] = line.pop("total")
+            try:
+                line["amount"] = Decimal(line.pop("total"))
+            except:
+                line['amount'] = Decimal(0)
+            finally:
+                pass
             line["memo"] = ""
             line["desc"] = line.pop("items") 
             print(line)
@@ -94,4 +106,4 @@ def parse_amazon(filename):
     return parsed_data
 
 if __name__ == "__main__":
-    parse_amazon(getfile())
+    parse_xfx(getfile())

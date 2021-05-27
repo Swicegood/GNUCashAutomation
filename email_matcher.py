@@ -1,18 +1,24 @@
+import functools
 from tkinter import * 
 from tkinter import ttk
 from gmail import grab_emails
+from decimal import Decimal, getcontext
+import webbrowser
 
 def ematcher(emailmatches, transaction, paypal_txns, amazon_txns):
     t = Toplevel()
     t.title("Select Matching Email")
 
+    getcontext().prec=2
+    search_str = Decimal.copy_abs(transaction["amount"])
+
     if not emailmatches:
-        emailmatches = grab_emails(transaction["amount"])
+        emailmatches = grab_emails(str(search_str))
     for emailmatch in emailmatches:
-        emailmatch["link"] = "https://paypal.com"
+        emailmatch["link"] = "No Info"
     
-    content = ttk.Frame(t, width=700, height=100, border=2, relief=RIDGE, style="BW.TFrame")
-    frame = ttk.Frame(t, width=700, height=300, border=2, relief=RIDGE, style="BW.TFrame")
+    content = ttk.Frame(t, width=1200, height=100, border=2, relief=RIDGE, style="BW.TFrame")
+    frame = ttk.Frame(t, width=1200, height=300, border=2, relief=RIDGE, style="BW.TFrame")
     buttonframe = ttk.Frame(t, style="GREY.TFrame")
     content.grid(column=0, row=0)
     frame.grid(column=0, row=1)
@@ -46,7 +52,10 @@ def ematcher(emailmatches, transaction, paypal_txns, amazon_txns):
     subjectlbl = ttk.Label(frame, text="Subject", background="white", foreground="grey50")
     linklbl = ttk.Label(frame, text="Link to Invoice", background="white", foreground="grey50")
     ss = ttk.Separator(frame, orient=HORIZONTAL)
+    
     i = 0
+    subjectlbls = []
+    linklbls = []
     for emailmatch in emailmatches:
         if i == 0:
             mystyle = "BLUE.TLabel"
@@ -59,12 +68,16 @@ def ematcher(emailmatches, transaction, paypal_txns, amazon_txns):
                 subject = item["value"]
             if item["name"] == "Date":
                 date = item["value"]
+        link = invoice_matcher(transaction ,emailmatch, paypal_txns, amazon_txns)
         ttk.Label(frame, text=emailmatch["confidence"], style=mystyle).grid(column=0, row=2 + i, sticky="w e")
         ttk.Label(frame, text=date.split(" ")[:3], style=mystyle).grid(column=1, row=2 + i, sticky="w e")
-        ttk.Label(frame, text=subject, style=mystyle).grid(column=2, row=2 + i, sticky="w e")
-        ttk.Label(frame, text=emailmatch["link"], style=mystyle).grid(column=3, row=2 + i, sticky="w e")
+        subjectlbls.append(ttk.Label(frame, text=subject, style=mystyle))
+        subjectlbls[i].grid(column=2, row=2 + i, sticky="w e")
+        subjectlbls[i].bind("<Button 1>", functools.partial(launch_browser, link="https://mail.google.com/mail/u/0/#all/"+emailmatch["id"])) 
+        linklbls.append(ttk.Label(frame, text=link, style=mystyle))
+        linklbls[i].grid(column=3, row=2 + i, sticky="w e")
+        linklbls[i].bind("<Button 1>", functools.partial(launch_browser, link=link))        
         i += 1
-
 
     accountlbl.grid(column=0,row=0, sticky="W")
     datelbl.grid(column=1,row=0, sticky="W")
@@ -76,7 +89,6 @@ def ematcher(emailmatches, transaction, paypal_txns, amazon_txns):
         content.grid_columnconfigure(i, weight=1)    
     s.grid(columnspan=6 , row=1, sticky="E W")
     
-
     confidencelbl.grid(column=0,row=0, sticky="W")
     date2lbl.grid(column=1,row=0, sticky="W")
     subjectlbl.grid(column=2,row=0, sticky="W")
@@ -95,15 +107,56 @@ def ematcher(emailmatches, transaction, paypal_txns, amazon_txns):
     t.wait_window(t)
     return value
 
+def launch_browser(self, link):
+    webbrowser.open(link, new=2)
+
+def invoice_matcher(trxn, email, paypal_txns, amazon_txns):
+
+    if trxn["id"]:
+        return "https://www.paypal.com/myaccount/transactions/details/"+trxn["id"]
+    else:
+        for item in email["payload"]["headers"]:
+             if item["name"] == "From":
+                sender = item["value"]
+                sender = sender.lower()
+        if sender.find("amazon.com") != -1:
+            matches = []
+            for amazon_trxn in amazon_txns:
+                if trxn["amount"] == amazon_trxn["amount"]:
+                    matches.append(amazon_trxn)
+            datematches = []
+            if not matches:
+                return "No Match"
+            elif len(matches) == 1:
+                return "https://smile.amazon.com/gp/css/summary/print.html/ref=ppx_od_dt_b_invoice?ie=UTF8&orderID="+matches[0]["id"]
+            else:
+                for match in matches:
+                    return "https://smile.amazon.com/gp/css/summary/print.html/ref=ppx_od_dt_b_invoice?ie=UTF8&orderID="+match["id"]
+        elif sender.find("paypal.com") != -1:
+            matches = []
+            for paypal_trxn in paypal_txns:
+                if trxn["amount"] == paypal_trxn["amount"]:
+                    matches.append(paypal_trxn)
+            datematches = []
+            if not matches:
+                return "No Match"
+            elif len(matches) == 1:
+                return "https://www.paypal.com/myaccount/transactions/details/"+matches[0]["id"]
+            else:
+                for match in matches:
+                    return "https://www.paypal.com/myaccount/transactions/details/"+match["id"]
+        else:
+            return "Unsupported Company"
+
 
 if __name__ == "__main__":
     emailmatches = []
     transaction = { "account": "PayPal",
                     "date": "05/3/2021", 
-                    "amount": "419.25", 
+                    "amount": Decimal("419.25"), 
                     "desc": "eBay Purchase", 
                     "memo": "", 
-                    "balanced":True }
+                    "id": "9C5078087R528811T" }
     paypal_txns = []
     amazon_txns = []
     real = Tk()
