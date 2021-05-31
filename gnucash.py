@@ -1,143 +1,300 @@
-from tkinter import *
-from tkinter import ttk
+import tkinter as tk
+from tkinter import Frame, Label, ttk
 from tkinter import filedialog
+from tkinter.constants import VERTICAL
 from email_matcher import ematcher
-from parse import parse_paypal
-from filedialogs import getfile
+from parse import parse_amazon, parse_paypal, parse_amex, parse_pdf, parse_xfx, parse_accounts, parse_export
+from filedialogs import file_save, getfile
 import functools
 
-emailmatches = []
-transaction = { "account": "PayPal",
-                "date": "05/3/2021", 
-                "amount": "419.25", 
-                "desc": "eBay Purchase", 
-                "memo": "", 
-                "balanced":True }
-paypal_txns = []
-amazon_txns = []
+ACCOUNTS_FILE = "/Users/jaga/Google Drive/GNUcash/accounts.csv"
 
-def getfilename():
-    global transactions
-    filename = getfile()
-    transactions = parse_paypal(filename)
-    listframe.tkraise()
-    i = 0
-    info = 7
-    rowframes = []    
-    comments = "New, UNBALANCED (need account to transfer "
-    for line in transactions:
-        if i == 0:
-            mystyle = "BLUE.TLabel"
-        else:
-            mystyle = "BW.TLabel"
-        rowframe = ttk.Frame(listframe)
-        rowframe.grid(row=2 + i, columnspan=5, sticky="n s w e")
-        datelbl1 = ttk.Label(rowframe, text=line["date"], style=mystyle)
-        datelbl1.grid(column=0, row=0, sticky="w e")
-        datelbl1.bind("<Button 1>", changecolor)
-        amountlbl1 = ttk.Label(rowframe, text=line["amount"], style=mystyle)
-        amountlbl1.grid(column=1, row=0, sticky="w e")
-        amountlbl1.bind("<Button 1>", changecolor)
-        desclbl1 = ttk.Label(rowframe, text=line["desc"], style=mystyle)
-        desclbl1.grid(column=2, row=0, sticky="w e")
-        desclbl1.bind("<Button 1>", changecolor)
-        infolbl1 = ttk.Label(rowframe, text=str(info), style=mystyle)
-        infolbl1.grid(column=3, row=0, sticky="w e")
-        infolbl1.bind("<Button 1>", functools.partial(start_ematcher, trxn=line))
-        comlbl1 = ttk.Label(rowframe, text=comments+line["amount"]+")!", style=mystyle)
-        comlbl1.grid(column=4, row=0, sticky="w e")
-        comlbl1.bind("<Button 1>", changecolor)
-        rowframe.grid_columnconfigure(0, weight=1)
-        rowframe.grid_columnconfigure(1, weight=1)
-        rowframe.grid_columnconfigure(2, weight=2)
-        rowframe.grid_columnconfigure(3, weight=1)
-        rowframe.grid_columnconfigure(4, weight=5)
-        rowframes.append(rowframe)
-        rowframe.propagate(0)
-        i += 1
+class GnuCashApp(tk.Tk):
 
-root = Tk()
-root.title("Transaction Import Assistant")
+    def __init__(self, *args, **kwargs):
+        tk.Tk.__init__(self, *args, **kwargs)
 
-style = ttk.Style()
-style.theme_use("classic")
-style.configure("BW.TFrame", foreground="black", background="white")
-style.configure("GREY.TFrame", foreground="black", background="grey85")
-style.configure("BW.TLabel", foreground="black", background="white")
-style.configure("GREY.TLabel", foreground="black", background="grey75")
-style.configure("BLUE.TLabel", foreground="white", background="royal blue")
-style.configure("BLUE.TCheckbutton", foreground="black", background="royal blue")
-content = ttk.Frame(root, style="GREY.TFrame")
-frame = ttk.Frame(content, width=1200, height=700)
-listframe = ttk.Frame(frame, style="BW.TFrame", relief=RIDGE)
-startframe = ttk.Frame(frame, style="GREY.TFrame", relief=RIDGE)
-stepsframe = ttk.Frame(content, style="BW.TFrame", relief=RIDGE)
-nextframe = ttk.Frame(frame)
+        self.geometry("1300x700")
+        self.grid_rowconfigure(0, weight=1) # this needed to be added
+        self.grid_columnconfigure(0, weight=1) # as did this
+        self.title("Transaction Import Assistant")
+        style = ttk.Style()
+        style.theme_use("classic")
+        style.configure("BW.TFrame", foreground="black", background="white")
+        style.configure("GREY.TFrame", foreground="black", background="grey85")
+        style.configure("BW.TLabel", foreground="black", background="white")
+        style.configure("GREY.TLabel", foreground="black", background="grey75")
+        style.configure("BLUE.TLabel", foreground="white", background="royal blue")
+        style.configure("BLUE.TCheckbutton", foreground="black", background="royal blue")
+        style.configure("LIME.TLabel", foreground="black", background="#bbffbd")
+        style.configure("SUNSHINE.TLabel", foreground="black", background="#fdd236")
+        content = ttk.Frame(self, style="GREY.TFrame")
+        content.grid_rowconfigure(0, weight = 1)
+        content.grid_columnconfigure(1, weight = 1)
+        paneframe = ttk.Frame(content, width=1200, height=700)    
+        content.grid(column=0, row=0, sticky="nsew")
 
-next = ttk.Button(frame, text="Next", command=getfilename)           
-startlbl = ttk.Label(stepsframe, text="Start", style="GREY.TLabel")
-importlbl = ttk.Label(stepsframe, text="Select Transaction File to Import",style="BW.TLabel" )
-amazonlbl = ttk.Label(stepsframe, text="Select Amazon Tranaction File to Use",style="BW.TLabel" )
-paypallbl = ttk.Label(stepsframe, text="Select Paypal Tranaction File to Use",style="BW.TLabel" )
-matchlbl = ttk.Label(stepsframe, text="Match Transactions with Accounts",style="BW.TLabel" )
-sumlbl = ttk.Label(stepsframe, text="Summary and Export",style="BW.TLabel" )
+        paneframe.grid(column=1, row=0, columnspan=5, rowspan=2, sticky="nsew")
+        self.stepsframe_ = StepsFrame(parent=content, controller=self)
 
+        self.pageframes = {}
+        
+        for F in (StartPage, ImportTrxnFilePage, ListPage):
+            page_name = F.__name__
+            pageframe = F(parent=paneframe, controller=self)
+            self.pageframes[page_name] = pageframe
 
-datelbl = ttk.Label(listframe, text="Date", background="white", foreground="grey50")
-amountlbl = ttk.Label(listframe, text="Amount", background="white", foreground="grey50")
-desclbl = ttk.Label(listframe, text="Description", background="white", foreground="grey50")
-infolbl = ttk.Label(listframe, text="Info", background="white", foreground="grey50")
-memolbl = ttk.Label(listframe, text="Additional Comments", background="white", foreground="grey50")
-s = ttk.Separator(listframe, orient=HORIZONTAL)
+            # put all of the pages in the same location;
+            # the one on the top of the stacking order
+            # will be the one that is visible.
+            pageframe.grid(column=0, row=0, pady=40, padx=10, sticky="nsew", ipady=5, ipadx=5)
 
-content.grid(column=0, row=0)
-frame.grid(column=1, row=0, columnspan=5, rowspan=2)
-listframe.grid(column=0, row=0, pady=40, padx=10, sticky="n e w s", ipady=5, ipadx=5)
-startframe.grid(column=0, row=0, pady=40, padx=10, sticky="n e w s", ipady=5, ipadx=5)
-stepsframe.grid(column=0, row=0, columnspan=1, rowspan=2, sticky="N S", padx=10, pady=10)
-startlbl.grid(column=0, row=0, sticky="w e", padx=10, pady=5)
-importlbl.grid(column=0, row=1, sticky="w", padx=10, pady=5)
-amazonlbl.grid(column=0, row=2, sticky="w", padx=10, pady=5)
-paypallbl.grid(column=0, row=3, sticky="w", padx=10, pady=5)
-matchlbl.grid(column=0, row=4, sticky="w", padx=10, pady=5)
-sumlbl.grid(column=0, row=5, sticky="w", padx=10, pady=5)
+        paneframe.grid_columnconfigure(0, weight=1)
+        paneframe.grid_rowconfigure(0, weight=1)       
 
-infolbl.grid(column=3,row=0, sticky="W E")
-datelbl.grid(column=0,row=0, sticky="W E")
-amountlbl.grid(column=1,row=0, sticky="W E")
-desclbl.grid(column=2,row=0, sticky="W E")
-memolbl.grid(column=4,row=0, sticky="W E")
-    
-listframe.grid_columnconfigure(0, weight=1)
-listframe.grid_columnconfigure(1, weight=1)
-listframe.grid_columnconfigure(2, weight=2)
-listframe.grid_columnconfigure(3, weight=1)
-listframe.grid_columnconfigure(4, weight=5)
-s.grid(columnspan=5, row=1, sticky="W E")
+        nextframe = ttk.Frame(paneframe)
+        next = ttk.Button(paneframe, text="Next", command=self.nextstep)
+        next.grid(column=0, row=1, sticky="e s")
+        self.show_frame("ImportTrxnFilePage")
+        self.step = 2
 
-frame.grid_columnconfigure(0, weight=1)
-frame.grid_rowconfigure(0, weight=1)
+    def show_frame(self, page_name):
+        '''Show a frame for the given page name'''        
+        xframe = self.pageframes[page_name]
+        xframe.tkraise()
 
-next.grid(column=0, row=0, sticky="e s")
-frame.grid_propagate(0)
+    def nextstep(self):
+        skip = 0
+        if self.step == 1:
+            self.show_frame("ImportTrxnFilePage")
+        if self.step == 2:
+            filename = getfile()
+            if self.pageframes["ImportTrxnFilePage"].bank.get() == "xfx":
+                self.transactions = parse_xfx(filename)
+            if self.pageframes["ImportTrxnFilePage"].bank.get() == "paypal":
+                self.transactions = parse_paypal(filename)
+            if self.pageframes["ImportTrxnFilePage"].bank.get() == "amex":
+                self.transactions = parse_amex(filename)
+            if self.pageframes["ImportTrxnFilePage"].bank.get() == "paypalpdf":
+                self.transactions = parse_pdf(filename)
+                skip = 1
+            self.pageframes["StartPage"].setFilename(filename)
+            self.pageframes["StartPage"].newlabel()
+            self.show_frame("StartPage")
+            self.stepsframe_.importlbl.config(style="BW.TLabel")
+            if skip:
+                self.stepsframe_.amazonlbl.config(style="GREY.TLabel")
+            else:     
+                self.stepsframe_.paypallbl.config(style="GREY.TLabel")
+        if self.step == 3:
+            filename = getfile()
+            self.pageframes["ListPage"].paypal_txns = parse_pdf(filename)
+            self.pageframes["StartPage"].setFilename(filename)
+            self.pageframes["StartPage"].newlabel()
+            self.stepsframe_.amazonlbl.config(style="GREY.TLabel")
+            self.stepsframe_.paypallbl.config(style="BW.TLabel")
+        if self.step == 4:
+            filename = getfile()
+            self.pageframes["ListPage"].amazon_txns = parse_amazon(filename)
+            self.pageframes["StartPage"].setFilename(filename)
+            self.pageframes["StartPage"].newlabel()       
+        if self.step == 5:            
+            self.stepsframe_.amazonlbl.config(style="BW.TLabel")
+            self.stepsframe_.matchlbl.config(style="GREY.TLabel") 
+            self.show_frame("ListPage")
+            self.pageframes["ListPage"].propagate_transactions(self.transactions)
+        if self.step == 6:
+            self.stepsframe_.sumlbl.config(style="GREY.TLabel")
+            self.stepsframe_.matchlbl.config(style="BW.TLabel")
+            self.show_frame("StartPage")
+            filename = file_save()
+            parse_export(filename, self.transactions)
+        self.step += 1 + skip
+        
+class StartPage(ttk.Frame):
 
-def changecolor(event):
-    # Makes all rows white
-    for frame in rowframes:
-        for k in frame.winfo_children():
-            k.config(style="BW.TLabel")
-    # Makes clicked row highlighted
-    for widg in event.widget.master.winfo_children():
-        widg.config(style="BLUE.TLabel")
+    def __init__(self, parent, controller):
+        ttk.Frame.__init__(self, parent, style="GREY.TFrame", relief=tk.RIDGE)
+        self.controller = controller
+        self.grid_rowconfigure(0, weight=1) # this needed to be added
+        self.grid_columnconfigure(0, weight=1) # as did this
+        self.row = 0
+        self.filename = ""
 
-def start_ematcher(event, trxn):
-    changecolor(event)
-    ematcher(emailmatches, trxn, paypal_txns, amazon_txns)
-    pass
+    def setFilename(self, filename):
+        self.filename = filename
+
+    def newlabel(self):
+        filelbl = ttk.Label(self, text="LOADED SUCCESSFULLY: "+self.filename)
+        filelbl.grid(column=0, row=self.row, padx=40, pady=40, sticky="wn")
+        filelbl.rowconfigure(self.row, weight=1)
+        self.row += 1
 
 
+class ImportTrxnFilePage(ttk.Frame):
 
-root.mainloop()
+    def __init__(self, parent, controller):
+        ttk.Frame.__init__(self, parent, style="GREY.TFrame", relief=tk.RIDGE)    
+        self.bank = tk.StringVar()
+        firsthorizon = ttk.Radiobutton(self, text='First Horizon (OFX)', variable=self.bank, value='xfx')
+        suntrust = ttk.Radiobutton(self, text='Suntrust (QFX', variable=self.bank, value='xfx')
+        amex = ttk.Radiobutton(self, text='American Express (CSV', variable=self.bank, value='amex')
+        paypal = ttk.Radiobutton(self, text='Paypal (CSV)', variable=self.bank, value='paypal')
+        paypalpdf = ttk.Radiobutton(self, text='Paypal (PDF)', variable=self.bank, value='paypalpdf')
+        firsthorizon.grid(column=0,row=0, padx=40, sticky="w")
+        amex.grid(column=0,row=1, padx=40, sticky="w")
+        paypal.grid(column=0,row=3, padx=40, sticky="w")
+        paypalpdf.grid(column=0,row=4, padx=40, sticky="w")
+        suntrust.grid(column=0,row=2, padx=40, sticky="w")
+        self.contoller = controller
+
+class ListPage(ttk.Frame):
+
+    def __init__(self, parent, controller):
+        ttk.Frame.__init__(self, parent, style="BW.TFrame", relief=tk.RIDGE)    
+        datelbl = ttk.Label(self, text="Date", background="white", foreground="grey50")
+        amountlbl = ttk.Label(self, text="Amount", background="white", foreground="grey50")
+        desclbl = ttk.Label(self, text="Description", background="white", foreground="grey50")
+        infolbl = ttk.Label(self, text="Info", background="white", foreground="grey50")
+        memolbl = ttk.Label(self, text="Additional Comments", background="white", foreground="grey50")
+        s = ttk.Separator(self, orient=tk.HORIZONTAL)
+        infolbl.grid(column=3,row=0, sticky="W E")
+        datelbl.grid(column=0,row=0, sticky="W E")
+        amountlbl.grid(column=1,row=0, sticky="W E")
+        desclbl.grid(column=2,row=0, sticky="W E")
+        memolbl.grid(column=4,row=0, sticky="W E")
+            
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(2, weight=4)
+        self.grid_columnconfigure(3, weight=1)
+        self.grid_columnconfigure(4, weight=5)
+        s.grid(columnspan=5, row=1, sticky="W E")
+
+        self.emailmatches = []
+        self.transaction = { "account": "PayPal",
+                        "date": "05/3/2021", 
+                        "amount": "419.25", 
+                        "desc": "eBay Purchase", 
+                        "memo": "", 
+                        "balanced":True }
+        self.paypal_txns = []
+        self.amazon_txns = []
 
 
+    def changecolor(self, event, master, color):
+        # Makes all rows white
+        for Labels in self.Labelset:
+            for label in Labels:
+                label.config(style="SUNSHINE.TLabel")
+            # Makes clicked row highlighted
+            for line_num in self.green_lines:
+                Labels[line_num].config(style="LIME.TLabel")
+            Labels[master].config(style=color)     
 
+    def start_ematcher(self, event, trxn, master):
+        self.changecolor(event, master, "BLUE.TLabel")
+        ematcher(self.emailmatches, trxn, self.paypal_txns, self.amazon_txns)
+
+    def start_accounts_diag(self, event, master):
+        acc_diag = AccountsDialog(controller=self, master=master, ACCOUNTS_FILE=ACCOUNTS_FILE)
+
+    def set_account(self, value, master):
+        self.transactions[master]["tranfer_account"] = value
+        self.comlbls[master].config(text=value)
+        self.changecolor(event=None, master=master, color="LIME.TLabel")
+        self.green_lines.add(master)
+
+    def unset_account(self, master):
+        self.transactions[master]["transfer_account"] = ""
+        self.comlbls[master].config(text="New, UNBALANCED (need account to transfer)")
+        self.changecolor(event=None, master=master, color="SUNSHINE.TLabel")
+        self.green_lines.remove(master)
+
+    def propagate_transactions(self, transactions):
+        self.transactions = transactions
+        self.green_lines = set()
+        self.Labelset = [] 
+        self.datelbls = []
+        self.amountlbls = []
+        self.desclbls = []
+        self.infolbls = []
+        self.comlbls = [] 
+        i = 0
+        for line in transactions:
+            if i == 0:
+                mystyle = "BLUE.TLabel"
+            else:
+                mystyle = "SUNSHINE.TLabel"
+            info = 7
+            comments = "New, UNBALANCED (need account to transfer "
+            self.datelbls.append(ttk.Label(self, text=line["date"], style=mystyle))
+            self.datelbls[i].grid(column=0, row=i+2, sticky="w e")
+            self.datelbls[i].bind("<Button 1>", functools.partial(self.changecolor, master=i, color="BLUE.TLabel"))
+            self.amountlbls.append(ttk.Label(self, text=str(line["amount"]), style=mystyle))
+            self.amountlbls[i].grid(column=1, row=i+2, sticky="w e")
+            self.amountlbls[i].bind("<Button 1>", functools.partial(self.changecolor, master=i, color="BLUE.TLabel"))
+            self.desclbls.append(ttk.Label(self, text=line["desc"], style=mystyle))
+            self.desclbls[i].grid(column=2, row=i+2, sticky="w e")
+            self.desclbls[i].bind("<Button 1>", functools.partial(self.changecolor, master=i, color="BLUE.TLabel"))
+            self.infolbls.append(ttk.Label(self, text=str(info), style=mystyle))
+            self.infolbls[i].grid(column=3, row=i+2, sticky="w e")
+            self.infolbls[i].bind("<Button 1>", functools.partial(self.start_ematcher, trxn=line, master=i))
+            self.comlbls.append(ttk.Label(self, text=comments+str(line["amount"])+")!", style=mystyle))
+            self.comlbls[i].grid(column=4, row=i+2, sticky="w e")
+            self.comlbls[i].bind("<Button 1>", functools.partial(self.start_accounts_diag, master=i))
+            i += 1 
+        self.Labelset.append(self.datelbls)
+        self.Labelset.append(self.amountlbls)
+        self.Labelset.append(self.desclbls)
+        self.Labelset.append(self.infolbls)
+        self.Labelset.append(self.comlbls)
+
+class StepsFrame(ttk.Frame):
+
+    def __init__(self, parent, controller):
+        ttk.Frame.__init__(self, parent, style="BW.TFrame", relief=tk.RIDGE)
+        self.startlbl = ttk.Label(self, text="Start", style="BW.TLabel")
+        self.importlbl = ttk.Label(self, text="Select Transaction File to Import",style="GREY.TLabel" )
+        self.amazonlbl = ttk.Label(self, text="Select Amazon Tranaction File to Use",style="BW.TLabel" )
+        self.paypallbl = ttk.Label(self, text="Select Paypal Tranaction File to Use",style="BW.TLabel" )
+        self.matchlbl = ttk.Label(self, text="Match Transactions with Accounts",style="BW.TLabel" )
+        self.sumlbl = ttk.Label(self, text="Summary and Export",style="BW.TLabel" )
+        self.grid(column=0, row=0, columnspan=1, rowspan=2, sticky="N S", padx=10, pady=10)
+        self.startlbl.grid(column=0, row=0, sticky="w e", padx=10, pady=5)
+        self.importlbl.grid(column=0, row=1, sticky="w", padx=10, pady=5)
+        self.amazonlbl.grid(column=0, row=3, sticky="w", padx=10, pady=5)
+        self.paypallbl.grid(column=0, row=2, sticky="w", padx=10, pady=5)
+        self.matchlbl.grid(column=0, row=4, sticky="w", padx=10, pady=5)
+        self.sumlbl.grid(column=0, row=5, sticky="w", padx=10, pady=5)
+
+class AccountsDialog(tk.Toplevel):
+
+    def __init__(self, controller, master, ACCOUNTS_FILE):
+        tk.Toplevel.__init__(self)
+        self.controller = controller
+        self.master_index = master
+        self.title("Choose Transfer Account")
+        self.accounts = parse_accounts(ACCOUNTS_FILE)            
+        self.tree = ttk.Treeview(self)
+        self.tree.grid(column=0, row=0, sticky="sen")
+        self.scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.tree.yview)
+        self.scrollbar.grid(column=0, row=0, sticky="sen")
+        self.tree.configure(yscrollcommand=self.scrollbar.set)   
+        for line in self.accounts:
+            self.tree.insert("", "end", text=line["full_name"])
+        self.tree.bind("<<TreeviewSelect>>", self.on_row_click)
+        button = ttk.Button(self, text="Clear", command=self.clear)
+        button.grid(column=0, row=1)
+
+    def clear(self):
+        self.controller.unset_account(self.master_index)
+
+    def on_row_click(self, event):        
+        print(self.tree.selection())
+        item = self.tree.selection()[0]
+        self.selected_account = self.tree.item(item, "text")
+        self.controller.set_account(self.selected_account, self.master_index)
+
+app = GnuCashApp()
+app.mainloop()

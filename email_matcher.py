@@ -4,6 +4,7 @@ from tkinter import ttk
 from gmail import grab_emails
 from decimal import Decimal, getcontext
 import webbrowser
+from datetime import datetime, timedelta
 
 def ematcher(emailmatches, transaction, paypal_txns, amazon_txns):
     t = Toplevel()
@@ -69,6 +70,7 @@ def ematcher(emailmatches, transaction, paypal_txns, amazon_txns):
             if item["name"] == "Date":
                 date = item["value"]
         link = invoice_matcher(transaction ,emailmatch, paypal_txns, amazon_txns)
+        print(link)
         ttk.Label(frame, text=emailmatch["confidence"], style=mystyle).grid(column=0, row=2 + i, sticky="w e")
         ttk.Label(frame, text=date.split(" ")[:3], style=mystyle).grid(column=1, row=2 + i, sticky="w e")
         subjectlbls.append(ttk.Label(frame, text=subject, style=mystyle))
@@ -131,7 +133,14 @@ def invoice_matcher(trxn, email, paypal_txns, amazon_txns):
                 return "https://smile.amazon.com/gp/css/summary/print.html/ref=ppx_od_dt_b_invoice?ie=UTF8&orderID="+matches[0]["id"]
             else:
                 for match in matches:
-                    return "https://smile.amazon.com/gp/css/summary/print.html/ref=ppx_od_dt_b_invoice?ie=UTF8&orderID="+match["id"]
+                    for i in range(3):
+                        TRANSACTION_CHECK = datetime.strptime(trxn["date"], "%m/%d/%Y")
+                        start =  TRANSACTION_CHECK - timedelta(days=i)
+                        end = TRANSACTION_CHECK + timedelta(days=i)
+                        COMPANY_PURCHASE_CHECK = datetime.strptime(match["date"], "%Y-%m-%d")
+                        if start <= COMPANY_PURCHASE_CHECK <= end:
+                            return "https://smile.amazon.com/gp/css/summary/print.html/ref=ppx_od_dt_b_invoice?ie=UTF8&orderID="+match["id"]
+
         elif sender.find("paypal.com") != -1:
             matches = []
             for paypal_trxn in paypal_txns:
@@ -144,7 +153,13 @@ def invoice_matcher(trxn, email, paypal_txns, amazon_txns):
                 return "https://www.paypal.com/myaccount/transactions/details/"+matches[0]["id"]
             else:
                 for match in matches:
-                    return "https://www.paypal.com/myaccount/transactions/details/"+match["id"]
+                    for i in range(3):
+                        TRANSACTION_CHECK = datetime.strptime(trxn["date"], "%m/%d/%Y")
+                        start =  TRANSACTION_CHECK - timedelta(days=i)
+                        end = TRANSACTION_CHECK + timedelta(days=i)
+                        COMPANY_PURCHASE_CHECK = datetime.strptime(match["date"], "%m/%d/%Y")
+                        if start <= COMPANY_PURCHASE_CHECK <= end:
+                            return "https://www.paypal.com/myaccount/transactions/details/"+match["id"]
         else:
             return "Unsupported Company"
 
@@ -152,11 +167,12 @@ def invoice_matcher(trxn, email, paypal_txns, amazon_txns):
 if __name__ == "__main__":
     emailmatches = []
     transaction = { "account": "PayPal",
-                    "date": "05/3/2021", 
-                    "amount": Decimal("419.25"), 
-                    "desc": "eBay Purchase", 
+                    "date": "05/2/2021", 
+                    "amount": Decimal("40.00"), 
+                    "desc": "Vijaya Metha", 
                     "memo": "", 
-                    "id": "9C5078087R528811T" }
+                    "id": ""
+                   }
     paypal_txns = []
     amazon_txns = []
     real = Tk()
