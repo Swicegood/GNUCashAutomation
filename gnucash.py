@@ -1,11 +1,14 @@
 import tkinter as tk
-from tkinter import Frame, Label, ttk
+from tkinter import Frame, Label, Widget, ttk
 from tkinter import filedialog
+from tkinter import messagebox
 from tkinter.constants import VERTICAL
 from email_matcher import ematcher
 from parse import parse_amazon, parse_paypal, parse_amex, parse_pdf, parse_xfx, parse_accounts, parse_export
 from filedialogs import file_save, getfile
 import functools
+from PIL import ImageTk, Image
+import traceback
 
 ACCOUNTS_FILE = "/Users/jaga/Google Drive/GNUcash/accounts.csv"
 
@@ -109,14 +112,23 @@ class GnuCashApp(tk.Tk):
             self.show_frame("StartPage")
             filename = file_save()
             parse_export(filename, self.transactions)
+            messagebox.showinfo("info", "SUCCESS! Transactions Exported to File.")
+            skip = 0
+            self.step = 0
         self.step += 1 + skip
         
+        def show_error(self, *args):
+            err = traceback.format_exception(*args)
+            messagebox.showerror('Exception',err)
+
+        tk.Tk.report_callback_exception = show_error
+
 class StartPage(ttk.Frame):
 
     def __init__(self, parent, controller):
         ttk.Frame.__init__(self, parent, style="GREY.TFrame", relief=tk.RIDGE)
         self.controller = controller
-        self.grid_rowconfigure(0, weight=1) # this needed to be added
+        self.grid_rowconfigure(0, weight=0) # this needed to be added
         self.grid_columnconfigure(0, weight=1) # as did this
         self.row = 0
         self.filename = ""
@@ -127,7 +139,7 @@ class StartPage(ttk.Frame):
     def newlabel(self):
         filelbl = ttk.Label(self, text="LOADED SUCCESSFULLY: "+self.filename)
         filelbl.grid(column=0, row=self.row, padx=40, pady=40, sticky="wn")
-        filelbl.rowconfigure(self.row, weight=1)
+        filelbl.rowconfigure(self.row, weight=0)
         self.row += 1
 
 
@@ -151,24 +163,32 @@ class ImportTrxnFilePage(ttk.Frame):
 class ListPage(ttk.Frame):
 
     def __init__(self, parent, controller):
-        ttk.Frame.__init__(self, parent, style="BW.TFrame", relief=tk.RIDGE)    
-        datelbl = ttk.Label(self, text="Date", background="white", foreground="grey50")
-        amountlbl = ttk.Label(self, text="Amount", background="white", foreground="grey50")
-        desclbl = ttk.Label(self, text="Description", background="white", foreground="grey50")
-        infolbl = ttk.Label(self, text="Info", background="white", foreground="grey50")
-        memolbl = ttk.Label(self, text="Additional Comments", background="white", foreground="grey50")
-        s = ttk.Separator(self, orient=tk.HORIZONTAL)
+        ttk.Frame.__init__(self, parent, style="BW.TFrame", relief=tk.RIDGE) 
+        self.logo = ImageTk.PhotoImage(Image.open("confidence_meter.png"))
+
+        self.scrolledframe = VerticalScrolledFrame(self)
+        self.scrolledframe.grid(column=0, row=0, sticky="nsew")
+        self.scrolledframe.rowconfigure(0, weight=1)
+        self.scrolledframe.columnconfigure(0, weight=1)
+        datelbl = ttk.Label(self.scrolledframe.interior, text="Date", background="white", foreground="grey50")
+        amountlbl = ttk.Label(self.scrolledframe.interior, text="Amount", background="white", foreground="grey50")
+        desclbl = ttk.Label(self.scrolledframe.interior, text="Description", background="white", foreground="grey50")
+        infolbl = ttk.Label(self.scrolledframe.interior, text="Info", background="white", foreground="grey50")
+        memolbl = ttk.Label(self.scrolledframe.interior, text="Additional Comments", background="white", foreground="grey50")
+        s = ttk.Separator(self.scrolledframe.interior, orient=tk.HORIZONTAL)
         infolbl.grid(column=3,row=0, sticky="W E")
         datelbl.grid(column=0,row=0, sticky="W E")
         amountlbl.grid(column=1,row=0, sticky="W E")
         desclbl.grid(column=2,row=0, sticky="W E")
         memolbl.grid(column=4,row=0, sticky="W E")
-            
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_columnconfigure(2, weight=4)
-        self.grid_columnconfigure(3, weight=1)
-        self.grid_columnconfigure(4, weight=5)
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)    
+
+        self.scrolledframe.interior.grid_columnconfigure(0, weight=1)
+        self.scrolledframe.interior.grid_columnconfigure(1, weight=1)
+        self.scrolledframe.interior.grid_columnconfigure(2, weight=4)
+        self.scrolledframe.interior.grid_columnconfigure(3, weight=1)
+        self.scrolledframe.interior.grid_columnconfigure(4, weight=5)
         s.grid(columnspan=5, row=1, sticky="W E")
 
         self.emailmatches = []
@@ -228,19 +248,19 @@ class ListPage(ttk.Frame):
                 mystyle = "SUNSHINE.TLabel"
             info = 7
             comments = "New, UNBALANCED (need account to transfer "
-            self.datelbls.append(ttk.Label(self, text=line["date"], style=mystyle))
+            self.datelbls.append(ttk.Label(self.scrolledframe.interior, text=line["date"], style=mystyle))
             self.datelbls[i].grid(column=0, row=i+2, sticky="w e")
             self.datelbls[i].bind("<Button 1>", functools.partial(self.changecolor, master=i, color="BLUE.TLabel"))
-            self.amountlbls.append(ttk.Label(self, text=str(line["amount"]), style=mystyle))
+            self.amountlbls.append(ttk.Label(self.scrolledframe.interior, text=str(line["amount"]), style=mystyle))
             self.amountlbls[i].grid(column=1, row=i+2, sticky="w e")
             self.amountlbls[i].bind("<Button 1>", functools.partial(self.changecolor, master=i, color="BLUE.TLabel"))
-            self.desclbls.append(ttk.Label(self, text=line["desc"], style=mystyle))
+            self.desclbls.append(ttk.Label(self.scrolledframe.interior, text=line["desc"], style=mystyle))
             self.desclbls[i].grid(column=2, row=i+2, sticky="w e")
             self.desclbls[i].bind("<Button 1>", functools.partial(self.changecolor, master=i, color="BLUE.TLabel"))
-            self.infolbls.append(ttk.Label(self, text=str(info), style=mystyle))
+            self.infolbls.append(ttk.Label(self.scrolledframe.interior, image=self.logo, style=mystyle))
             self.infolbls[i].grid(column=3, row=i+2, sticky="w e")
             self.infolbls[i].bind("<Button 1>", functools.partial(self.start_ematcher, trxn=line, master=i))
-            self.comlbls.append(ttk.Label(self, text=comments+str(line["amount"])+")!", style=mystyle))
+            self.comlbls.append(ttk.Label(self.scrolledframe.interior, text=comments+str(line["amount"])+")!", style=mystyle))
             self.comlbls[i].grid(column=4, row=i+2, sticky="w e")
             self.comlbls[i].bind("<Button 1>", functools.partial(self.start_accounts_diag, master=i))
             i += 1 
@@ -295,6 +315,44 @@ class AccountsDialog(tk.Toplevel):
         item = self.tree.selection()[0]
         self.selected_account = self.tree.item(item, "text")
         self.controller.set_account(self.selected_account, self.master_index)
+
+class VerticalScrolledFrame(ttk.Frame):
+
+    def __init__(self, parent, *args, **kw):
+        Frame.__init__(self, parent, *args, **kw)
+        vscrollbar = tk.Scrollbar(self, orient=VERTICAL)
+        vscrollbar.grid(column=5, row=0, sticky="ns")
+        canvas = tk.Canvas(self, bd=0, highlightthickness=0,
+                        yscrollcommand=vscrollbar.set)
+        canvas.grid(column=0,row=0, sticky="nsew")
+        vscrollbar.config(command=canvas.yview)
+
+                # reset the view
+        canvas.xview_moveto(0)
+        canvas.yview_moveto(0)
+
+        # create a frame inside the canvas which will be scrolled with it
+        self.interior = interior = Frame(canvas)
+        interior_id = canvas.create_window(0, 0, window=interior,
+                                           anchor=tk.NW)
+
+        # track changes to the canvas and frame width and sync them,
+        # also updating the scrollbar
+        def _configure_interior(event):
+            # update the scrollbars to match the size of the inner frame
+            size = (interior.winfo_reqwidth(), interior.winfo_reqheight())
+            canvas.config(scrollregion="0 0 %s %s" % size)
+            if interior.winfo_reqwidth() != canvas.winfo_width():
+                # update the canvas's width to fit the inner frame
+                canvas.config(width=interior.winfo_reqwidth())
+        interior.bind('<Configure>', _configure_interior)
+
+        def _configure_canvas(event):
+            if interior.winfo_reqwidth() != canvas.winfo_width():
+                # update the inner frame's width to fill the canvas
+                canvas.itemconfigure(interior_id, width=canvas.winfo_width())
+        canvas.bind('<Configure>', _configure_canvas)
+        
 
 app = GnuCashApp()
 app.mainloop()

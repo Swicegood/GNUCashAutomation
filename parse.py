@@ -8,16 +8,14 @@ from decimal import Decimal, getcontext
 import pdfreader
 from pdfreader import SimplePDFViewer
 
-getcontext().prec=10
-
 def parse_paypal(filename):
     parsed_data = []
     with open(filename, 'r') as data:
         
         for line in csv.DictReader(data):
             line["account"] = "PayPal"
-            line["date"] = line.pop("Date")
-            line["amount"] = Decimal(line.pop("Amount"))
+            line["date"] = line.pop('\ufeff"Date"')
+            line["amount"] = Decimal(line.pop("Amount").replace("$","").replace(",",""))
             line["memo"] = ""
             line["desc"] = line.pop("Name")    
             line["id"] = ""
