@@ -52,6 +52,7 @@ def parse_xfx(filename):
         else:
             line["account"] = str(account.type)
         line["date"] = transaction.date.strftime("%m/%d/%Y")
+        breakpoint()
         line["amount"] = transaction.amount.quantize(Decimal('.00'))
         line["desc"] = transaction.payee
         line["memo"] = transaction.checknum
@@ -78,7 +79,7 @@ def parse_pdf(filename):
                 line["date"] = pageofstrings[i*8 + 0]
                 line["desc"] = pageofstrings[i*8 + 1]
                 line["id"] = pageofstrings[i*8 + 2][5:]
-                line["amount"] = Decimal(pageofstrings[i*8 + 5])
+                line["amount"] = Decimal(pageofstrings[i*8 + 5].replace("$","").replace(",",""))
                 line["memo"] = ""
                 print(line)
                 parsed_data.append(line)
