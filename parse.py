@@ -52,7 +52,6 @@ def parse_xfx(filename):
         else:
             line["account"] = str(account.type)
         line["date"] = transaction.date.strftime("%m/%d/%Y")
-        breakpoint()
         line["amount"] = transaction.amount.quantize(Decimal('.00'))
         line["desc"] = transaction.payee
         line["memo"] = transaction.checknum

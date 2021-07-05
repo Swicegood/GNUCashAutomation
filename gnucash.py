@@ -1,6 +1,5 @@
 import tkinter as tk
-from tkinter import Frame, Label, Widget, ttk
-from tkinter import filedialog
+from tkinter import Frame, ttk
 from tkinter import messagebox
 from tkinter.constants import VERTICAL
 from email_matcher import ematcher
@@ -291,21 +290,30 @@ class StepsFrame(ttk.Frame):
 class AccountsDialog(tk.Toplevel):
 
     def __init__(self, controller, master, ACCOUNTS_FILE):
-        tk.Toplevel.__init__(self)
+        tk.Toplevel.__init__(self, width=400)
+        self.geometry("400x400")
         self.controller = controller
         self.master_index = master
         self.title("Choose Transfer Account")
-        self.accounts = parse_accounts(ACCOUNTS_FILE)            
+        self.accounts = parse_accounts(ACCOUNTS_FILE)    
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=1)  
+        self.rowconfigure(0, weight=1)      
         self.tree = ttk.Treeview(self)
-        self.tree.grid(column=0, row=0, sticky="sen")
+        self.tree.grid(column=0, row=0, sticky="senw", columnspan=2)
         self.scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.tree.yview)
-        self.scrollbar.grid(column=0, row=0, sticky="sen")
+        self.scrollbar.grid(column=0, row=0, sticky="sen", columnspan=2)
         self.tree.configure(yscrollcommand=self.scrollbar.set)   
         for line in self.accounts:
             self.tree.insert("", "end", text=line["full_name"])
         self.tree.bind("<<TreeviewSelect>>", self.on_row_click)
         button = ttk.Button(self, text="Clear", command=self.clear)
         button.grid(column=0, row=1)
+        ok_button = ttk.Button(self, text="Ok", command=self.do_ok)
+        ok_button.grid(column=1, row=1, sticky="w")
+
+    def do_ok(self, event=None):
+        self.destroy()
 
     def clear(self):
         self.controller.unset_account(self.master_index)
