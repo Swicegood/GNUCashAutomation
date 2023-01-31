@@ -1,21 +1,24 @@
+#!/home/jaga/.accounting_venv/bin/python3
+
 import tkinter as tk
 from tkinter import Frame, ttk
 from tkinter import messagebox
 from tkinter.constants import VERTICAL
 from email_matcher import ematcher
-from parse import parse_amazon, parse_paypal, parse_amex, parse_pdf, parse_xfx, parse_accounts, parse_export
+from parse import parse_amazon, parse_paypal, parse_amex, parse_pdf, parse_xfx, parse_accounts
+from ofxwriter import ofx_export
 from filedialogs import file_save, getfile
 import functools
 from PIL import ImageTk, Image
 import traceback
 
-ACCOUNTS_FILE = "/Users/jaga/Google Drive/GNUcash/accounts.csv"
+ACCOUNTS_FILE = "accounts.csv"
 
 class GnuCashApp(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-
+        global paneframe
         self.geometry("1300x700")
         self.grid_rowconfigure(0, weight=1) # this needed to be added
         self.grid_columnconfigure(0, weight=1) # as did this
@@ -45,7 +48,6 @@ class GnuCashApp(tk.Tk):
             page_name = F.__name__
             pageframe = F(parent=paneframe, controller=self)
             self.pageframes[page_name] = pageframe
-
             # put all of the pages in the same location;
             # the one on the top of the stacking order
             # will be the one that is visible.
@@ -57,64 +59,103 @@ class GnuCashApp(tk.Tk):
         nextframe = ttk.Frame(paneframe)
         next = ttk.Button(paneframe, text="Next", command=self.nextstep)
         next.grid(column=0, row=1, sticky="e s")
+        self.skipbtn = ttk.Button(paneframe, text="Skip", command=self.skipstep)
+        self.skipbtn.grid(column=1, row=1, sticky="e s")
         self.show_frame("ImportTrxnFilePage")
         self.step = 2
+        self.skip = False
 
     def show_frame(self, page_name):
         '''Show a frame for the given page name'''        
         xframe = self.pageframes[page_name]
         xframe.tkraise()
 
+    def skipstep(self):
+        self.skip = True
+        self.step += 1
+        if self.step > 6:
+            self.step = 1
+        self.nextstep()
+        self.skip == False
+        
     def nextstep(self):
-        skip = 0
+        filename = ''
+        savename = None
         if self.step == 1:
             self.show_frame("ImportTrxnFilePage")
-        if self.step == 2:
+            self.stepsframe_.startlbl.config(style="GREY.TLabel")
+        else:
+            self.stepsframe_.startlbl.config(style="BW.TLabel")
+        if self.step == 2:           
+            self.stepsframe_.importlbl.config(style="GREY.TLabel")
+            self.transactions = []
             filename = getfile()
-            if self.pageframes["ImportTrxnFilePage"].bank.get() == "xfx":
-                self.transactions = parse_xfx(filename)
-            if self.pageframes["ImportTrxnFilePage"].bank.get() == "paypal":
-                self.transactions = parse_paypal(filename)
-            if self.pageframes["ImportTrxnFilePage"].bank.get() == "amex":
-                self.transactions = parse_amex(filename)
-            if self.pageframes["ImportTrxnFilePage"].bank.get() == "paypalpdf":
-                self.transactions = parse_pdf(filename)
-                skip = 1
-            self.pageframes["StartPage"].setFilename(filename)
-            self.pageframes["StartPage"].newlabel()
-            self.show_frame("StartPage")
+            if len(filename):
+                if self.pageframes["ImportTrxnFilePage"].bank.get() == "xfx":
+                    self.transactions = parse_xfx(filename)
+                if self.pageframes["ImportTrxnFilePage"].bank.get() == "paypal":
+                    self.transactions = parse_paypal(filename)
+                if self.pageframes["ImportTrxnFilePage"].bank.get() == "amex":
+                    self.transactions = parse_amex(filename)
+                if self.pageframes["ImportTrxnFilePage"].bank.get() == "paypalpdf":
+                    self.transactions = parse_pdf(filename)
+                    self.skip = True
+                for child in self.pageframes["StartPage"].winfo_children():
+                    child.destroy()
+                self.pageframes["StartPage"].setFilename(filename)
+                self.pageframes["StartPage"].newlabel()
+                self.show_frame("StartPage")
+                app.title("Transaction Import Assistant  -- "+filename)
+        else:            
             self.stepsframe_.importlbl.config(style="BW.TLabel")
-            if skip:
-                self.stepsframe_.amazonlbl.config(style="GREY.TLabel")
-            else:     
-                self.stepsframe_.paypallbl.config(style="GREY.TLabel")
         if self.step == 3:
+            self.stepsframe_.paypallbl.config(style="GREY.TLabel")
             filename = getfile()
-            self.pageframes["ListPage"].paypal_txns = parse_pdf(filename)
-            self.pageframes["StartPage"].setFilename(filename)
-            self.pageframes["StartPage"].newlabel()
-            self.stepsframe_.amazonlbl.config(style="GREY.TLabel")
+            if len(filename):
+                self.pageframes["ListPage"].paypal_txns = []
+                self.pageframes["ListPage"].paypal_txns = parse_pdf(filename)
+                self.pageframes["StartPage"].setFilename(filename)
+                self.pageframes["StartPage"].newlabel()
+        else:
             self.stepsframe_.paypallbl.config(style="BW.TLabel")
         if self.step == 4:
+            self.stepsframe_.amazonlbl.config(style="GREY.TLabel")
             filename = getfile()
-            self.pageframes["ListPage"].amazon_txns = parse_amazon(filename)
-            self.pageframes["StartPage"].setFilename(filename)
-            self.pageframes["StartPage"].newlabel()       
-        if self.step == 5:            
+            if len(filename):  #valid filename (not empty)
+                self.pageframes["ListPage"].amazon_txns = []
+                self.pageframes["ListPage"].amazon_txns = parse_amazon(filename)
+                self.pageframes["StartPage"].setFilename(filename)
+                self.pageframes["StartPage"].newlabel()   
+        else:                       
             self.stepsframe_.amazonlbl.config(style="BW.TLabel")
+        if self.step == 5: 
             self.stepsframe_.matchlbl.config(style="GREY.TLabel") 
+            self.pageframes["ListPage"].destroy
+            self.pageframes["ListPage"] == ListPage(parent=paneframe, controller=self)
             self.show_frame("ListPage")
             self.pageframes["ListPage"].propagate_transactions(self.transactions)
+            self.skipbtn.grid_remove()
+        else:
+            self.skipbtn.grid(column=1, row=1, sticky="e s")            
+            self.stepsframe_.matchlbl.config(style="BW.TLabel")
         if self.step == 6:
             self.stepsframe_.sumlbl.config(style="GREY.TLabel")
-            self.stepsframe_.matchlbl.config(style="BW.TLabel")
             self.show_frame("StartPage")
-            filename = file_save()
-            parse_export(filename, self.transactions)
-            messagebox.showinfo("info", "SUCCESS! Transactions Exported to File.")
-            skip = 0
+            savename = file_save()            
+            if savename:
+                if self.transactions:                
+                    ofx_export(savename, self.transactions)
+                    messagebox.showinfo("info", "SUCCESS! Transactions Exported to File.")
+                else:
+                    messagebox.showinfo("info", "No Data to Write.")
+        else:
+            self.stepsframe_.sumlbl.config(style="BW.TLabel")
+       
+        # x = len(filename)  #len > 0 is valid filename        
+        if (filename and len(filename)) or savename  or self.step == 5 or self.step == 1:
+            self.step += 1   
+        if self.step > 6:
             self.step = 0
-        self.step += 1 + skip
         
         def show_error(self, *args):
             err = traceback.format_exception(*args)
@@ -261,7 +302,8 @@ class ListPage(ttk.Frame):
             self.infolbls[i].bind("<Button 1>", functools.partial(self.start_ematcher, trxn=line, master=i))
             self.comlbls.append(ttk.Label(self.scrolledframe.interior, text=comments+str(line["amount"])+")!", style=mystyle))
             self.comlbls[i].grid(column=4, row=i+2, sticky="w e")
-            self.comlbls[i].bind("<Button 1>", functools.partial(self.start_accounts_diag, master=i))
+            self.comlbls[i].bind("<Button-1>", functools.partial(self.changecolor, master=i, color="BLUE.TLabel"))
+            self.comlbls[i].bind("<Double-Button-1>", functools.partial(self.start_accounts_diag, master=i))
             i += 1 
         self.Labelset.append(self.datelbls)
         self.Labelset.append(self.amountlbls)
@@ -273,8 +315,8 @@ class StepsFrame(ttk.Frame):
 
     def __init__(self, parent, controller):
         ttk.Frame.__init__(self, parent, style="BW.TFrame", relief=tk.RIDGE)
-        self.startlbl = ttk.Label(self, text="Start", style="BW.TLabel")
-        self.importlbl = ttk.Label(self, text="Select Transaction File to Import",style="GREY.TLabel" )
+        self.startlbl = ttk.Label(self, text="Start", style="GREY.TLabel")
+        self.importlbl = ttk.Label(self, text="Select Transaction File to Import",style="BW.TLabel" )
         self.amazonlbl = ttk.Label(self, text="Select Amazon Tranaction File to Use",style="BW.TLabel" )
         self.paypallbl = ttk.Label(self, text="Select Paypal Tranaction File to Use",style="BW.TLabel" )
         self.matchlbl = ttk.Label(self, text="Match Transactions with Accounts",style="BW.TLabel" )

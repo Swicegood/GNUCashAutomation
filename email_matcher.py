@@ -10,8 +10,9 @@ def ematcher(emailmatches, transaction, paypal_txns, amazon_txns):
     t = Toplevel()
     t.title("Select Matching Email")
 
-    getcontext().prec=2
+    #getcontext().prec=2
     search_str = Decimal.copy_abs(transaction["amount"])
+
 
     if not emailmatches:
         emailmatches = grab_emails(str(search_str))

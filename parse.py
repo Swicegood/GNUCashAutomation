@@ -4,21 +4,29 @@ from os import write
 from typing_extensions import ParamSpecArgs
 from filedialogs import getfile
 from ofxparse import OfxParser
-from decimal import Decimal, getcontext
-import pdfreader
+from decimal import Decimal
 from pdfreader import SimplePDFViewer
+
+
+def decimalize(value, precision='0.00', rounding=decimal.ROUND_HALF_UP):
+    decimalized = Decimal(value)
+    return decimalized.quantize(Decimal(precision), rounding=rounding)
 
 def parse_paypal(filename):
     parsed_data = []
-    with open(filename, 'r') as data:
+    with open(filename, 'r', encoding="utf8") as data:
         
         for line in csv.DictReader(data):
             line["account"] = "PayPal"
             line["date"] = line.pop('\ufeff"Date"')
-            line["amount"] = Decimal(line.pop("Amount").replace("$","").replace(",",""))
-            line["memo"] = ""
+            line["amount"] = decimalize(line.pop("Net").replace("$","").replace(",",""))
+            line["memo"] = " "
             line["desc"] = line.pop("Name")    
             line["id"] = ""
+            if line["amount"] > 0:
+                line["type"] = "credit"
+            else:
+                line["type"] = "debit"
             print(line) 
             parsed_data.append(line)
     return parsed_data
@@ -30,10 +38,14 @@ def parse_amex(filename):
         for line in csv.DictReader(data):
             line["account"] = "Amex"
             line["date"] = line.pop("Date")
-            line["amount"] = Decimal(line.pop("Amount"))
-            line["memo"] = ""
+            line["amount"] = decimalize(line.pop("Amount"))
+            line["memo"] = " "
             line["desc"] = line.pop("Description") 
             line["id"] = ""
+            if line["amount"] > 0:
+                line["type"] = "debit"
+            else:
+                line["type"] = "credit"
             print(line)
             parsed_data.append(line)
     return parsed_data
@@ -56,6 +68,10 @@ def parse_xfx(filename):
         line["desc"] = transaction.payee
         line["memo"] = transaction.checknum
         line["id"] = ""
+        if line["amount"] > 0:
+            line["type"] = "credit"
+        else:
+            line["type"] = "debit"
         print(line)
         parsed_data.append(line)
     return parsed_data
@@ -78,8 +94,8 @@ def parse_pdf(filename):
                 line["date"] = pageofstrings[i*8 + 0]
                 line["desc"] = pageofstrings[i*8 + 1]
                 line["id"] = pageofstrings[i*8 + 2][5:]
-                line["amount"] = Decimal(pageofstrings[i*8 + 5].replace("$","").replace(",",""))
-                line["memo"] = ""
+                line["amount"] = decimalize(pageofstrings[i*8 + 5].replace("$","").replace(",",""))
+                line["memo"] = " "
                 print(line)
                 parsed_data.append(line)
     return parsed_data
@@ -92,12 +108,12 @@ def parse_amazon(filename):
             line["account"] = "Amazon"
             line["id"] = line.pop("\ufefforder id")
             try:
-                line["amount"] = Decimal(line.pop("total"))
+                line["amount"] = decimalize(line.pop("total"))
             except:
-                line['amount'] = Decimal(0)
+                line['amount'] = decimalize(0)
             finally:
                 pass
-            line["memo"] = ""
+            line["memo"] = " "
             line["desc"] = line.pop("items") 
             print(line)
             parsed_data.append(line)
@@ -118,8 +134,8 @@ def parse_export(csvfile, data):
             fieldnames = ["account", "date", "amount", "desc", "memo", "id", "tranfer_account"]
             fieldnames_notrns = ["account", "date", "amount", "desc", "memo", "id"]
         if data[0]["account"] == "PayPal":
-            fieldnames = ["Time", "TimeZone", "Type", "Status", "Currency", "Receipt ID", "Balance", "account", "date", "amount", "desc", "memo", "id", "tranfer_account"]
-            fieldnames_notrns = ["Time", "TimeZone", "Type", "Status", "Currency", "Receipt ID", "Balance", "account", "date", "amount", "desc", "memo", "id"]
+            fieldnames = ["Time", "TimeZone", "Type", "Status", "Currency", "Receipt ID", "Balance", "account", "date", "amount", "Gross", "Tip", "Fee", "desc", "memo", "id", "tranfer_account"]
+            fieldnames_notrns = ["Time", "TimeZone", "Type", "Status", "Currency", "Receipt ID", "Balance", "account", "date", "amount", "Gross", "Tip", "Fee", "desc", "memo", "id"]
         if data[0]["account"] == "Amex":
             fieldnames = ["Receipt", "account", "date", "amount", "memo", "desc", "id", "tranfer_account"]
             fieldnames_notrns = ["Receipt", "account", "date", "amount", "memo", "desc", "id"]
