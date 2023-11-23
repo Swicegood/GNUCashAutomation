@@ -11,6 +11,7 @@ from filedialogs import file_save, getfile
 import functools
 from PIL import ImageTk, Image
 import traceback
+import categorizer
 
 ACCOUNTS_FILE = "accounts.csv"
 
@@ -271,6 +272,23 @@ class ListPage(ttk.Frame):
         self.changecolor(event=None, master=master, color="SUNSHINE.TLabel")
         self.green_lines.remove(master)
 
+    def get_comment_text(self, description, memo, master):
+        transaction = {
+        "desc": description,
+        "memo": memo
+        }
+
+        category = categorizer.getCategory(transaction, 
+                                           categorizer.clf, 
+                                           categorizer.vectorizer, 
+                                           categorizer.label_encoder)
+        if category:            
+            self.transactions[master]["tranfer_account"] = category
+            return category
+        else:
+            return "New, UNBALANCED (need account to transfer "
+            
+
     def propagate_transactions(self, transactions):
         self.transactions = transactions
         self.green_lines = set()
@@ -300,7 +318,7 @@ class ListPage(ttk.Frame):
             self.infolbls.append(ttk.Label(self.scrolledframe.interior, image=self.logo, style=mystyle))
             self.infolbls[i].grid(column=3, row=i+2, sticky="w e")
             self.infolbls[i].bind("<Button 1>", functools.partial(self.start_ematcher, trxn=line, master=i))
-            self.comlbls.append(ttk.Label(self.scrolledframe.interior, text=comments+str(line["amount"])+")!", style=mystyle))
+            self.comlbls.append(ttk.Label(self.scrolledframe.interior, text=self.get_comment_text(line["desc"], line["memo"], master=i), style=mystyle))
             self.comlbls[i].grid(column=4, row=i+2, sticky="w e")
             self.comlbls[i].bind("<Button-1>", functools.partial(self.changecolor, master=i, color="BLUE.TLabel"))
             self.comlbls[i].bind("<Double-Button-1>", functools.partial(self.start_accounts_diag, master=i))

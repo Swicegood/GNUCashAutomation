@@ -5,8 +5,17 @@ from csv2ofx.ofx import OFX
 from csv2ofx.mappings.default import mapping
 from operator import itemgetter
 from decimal import Decimal
+import re
 
-def ofx_export(filename, transactions_list):
+def ofx_export(file, transactions_list):
+
+    def replace_bank_id_in_file(f):
+        f.seek(0)
+        content = f.read()
+        
+            # Replace the BANKID content
+        return re.sub(r'<BANKID>.*?</BANKID>', '<BANKID>084000026</BANKID>', content)
+
 
     def convert_decimal_to_string(data):
         if isinstance(data, dict):
@@ -40,7 +49,13 @@ def ofx_export(filename, transactions_list):
 
     for ofxline in IterStringIO(content):
         print(ofxline.decode("utf-8"))
-        filename.write(ofxline.decode("utf-8"))
+        file.write(ofxline.decode("utf-8"))
+
+    if transactions_list[0]["account"] == "Amex":
+        modified_content = replace_bank_id_in_file(file)
+        file.seek(0)
+        file.write(modified_content)
+        file.truncate()
 
 if __name__ == "__main__":
     print("Not to be used as stand-alone program.")

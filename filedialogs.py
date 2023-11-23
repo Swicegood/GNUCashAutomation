@@ -9,7 +9,7 @@ def getfile():
     return filename
 
 def file_save():
-    name=filedialog.asksaveasfile(mode='w',defaultextension=".ofx")
+    name=filedialog.asksaveasfile(mode='r+',defaultextension=".ofx")
     if name is None:
         return        
     return name
