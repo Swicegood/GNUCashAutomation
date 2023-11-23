@@ -19,7 +19,7 @@ with piecash.open_book(gnucash_file_path, open_if_lock=False) as book:
                     match_string = slot._name.split("/")[1]
                     account_guid = slot._name.split("/")[-1]
                     raw_value = slot.value
-                import_maps.append({"desc": match_string, "category": account_guid, "count": raw_value})
+                    import_maps.append({"desc": match_string, "category": account_guid, "count": raw_value})
 
     # Write the import map data to a CSV file
     # with open('import_map.csv', 'w', newline='') as file:

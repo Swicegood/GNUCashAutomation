@@ -1,10 +1,9 @@
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import numpy as np
-import import_map
+import import_map  # import_map is a module you have that provides the getImportMap function
 
 # Re-create the example map.csv with a few entries
 example_data = [{
@@ -13,89 +12,53 @@ example_data = [{
     'count': 8
 }, {
     'desc': 'WALMART',
-    'category': 'a0d9fasd9fsiadpfj08sdafus8'
+    'category': 'a0d9fasd9fsiadpfj08sdafus8',
     'count': 5
 }, {
     'desc': 'FOOD Lion',
-    'category': 'asd98asd9fasd9f7sad09f7sdfs'
-    'count': 1}]
+    'category': 'asd98asd9fasd9f7sad09f7sdfs',
+    'count': 1
+}]
 example_df = pd.DataFrame(example_data)
 
-# Function to update the map.csv with a new transaction
-# def update_map(transaction, category):
-#     # Load the existing map
-#     map_df = pd.read_csv(map_file_path)
-    
-#     # Append the new transaction to the dataframe
-#     new_entry = pd.DataFrame({'desc': [transaction['desc']], 'category': [category]})
-#     updated_df = pd.concat([map_df, new_entry], ignore_index=True)
-    
-#     # Save the updated dataframe back to CSV
-#     updated_df.to_csv(map_file_path, index=False)
-#     return updated_df
-
-# Function to train and return the Naive Bayes model, vectorizer, and label encoder
-# def train_model(map_file_path):
-#     # Load the map from the CSV file
-#     map_df = pd.read_csv(map_file_path)
-    
-#     # Preprocess the data
-#     vectorizer = CountVectorizer()
-#     X = vectorizer.fit_transform(map_df['desc'])
-#     label_encoder = LabelEncoder()
-#     y = label_encoder.fit_transform(map_df['category'])
-    
-#     # Train the classifier
-#     clf = MultinomialNB()
-#     clf.fit(X, y)
-    
-#     return clf, vectorizer, label_encoder
-
-
-def train_model(account):
-    # Load the map from the list
-    bayes_map = import_map.getImportMap(account)
-    map_df = bayes_map
-    
+def train_model(data):
     # Preprocess the data
     vectorizer = CountVectorizer()
-    X = vectorizer.fit_transform(map_df['desc'])
+    X = vectorizer.fit_transform(data['desc'])
     label_encoder = LabelEncoder()
-    y = label_encoder.fit_transform(map_df['category'])
-    
-    #train on each data in map_df number of times in count.value
+    y = label_encoder.fit_transform(data['category'])
+
+    # Create sample weights based on count
+    sample_weight = data['count'].values
 
     # Train the classifier
     clf = MultinomialNB()
-    clf.fit(X, y)
-    
+    clf.fit(X, y, sample_weight=sample_weight)
+
     return clf, vectorizer, label_encoder
 
 
+bayes_data = import_map.getImportMap(account='Amex')
+bayes_data_df = pd.DataFrame(bayes_data)
 # Train the model once and store the trained components
-clf, vectorizer, label_encoder = train_model(account="Amex")
+clf, vectorizer, label_encoder = train_model(bayes_data_df)
 
 # Define the getCategory function with confidence check and exact match check
-def getCategory(transaction, clf, vectorizer, label_encoder, confidence_threshold=0.27):
+def getCategory(transaction_desc, clf, vectorizer, label_encoder, confidence_threshold=0.27):
     # Check for an exact match in the training data first
-    if transaction["desc"] in example_df['desc'].values:
-        return example_df[example_df['desc'] == transaction["desc"]]['category'].values[0]
-    
+    if transaction_desc in bayes_data_df['desc'].values:
+        return bayes_data_df[bayes_data_df['desc'] == transaction_desc]['category'].values[0]
+
     # Vectorize the transaction description
-    trans_desc_vec = vectorizer.transform([transaction["desc"]])
-    
+    trans_desc_vec = vectorizer.transform([transaction_desc])
+
     # Predict the category probabilities
     predicted_probabilities = clf.predict_proba(trans_desc_vec)
-    
-    # Print the distribution of probabilities
-    print("Distribution of category probabilities:")
-    for category, probability in zip(label_encoder.classes_, predicted_probabilities.flatten()):
-        print(f"{category}: {probability:.4f}")
-    
+
     # Get the best category and its associated probability
     best_cat_index = predicted_probabilities.argmax()
     best_cat_probability = predicted_probabilities.max()
-    
+
     # Return the category only if the probability exceeds the threshold
     if best_cat_probability >= confidence_threshold:
         return label_encoder.inverse_transform([best_cat_index])[0]
@@ -103,13 +66,10 @@ def getCategory(transaction, clf, vectorizer, label_encoder, confidence_threshol
         return None
 
 # Example usage
-transaction = {
-    "desc": "AMZN",
-    "memo": "BOOK PURCHASE"
-}
+transaction_desc = "AMZN"
 
 # Predict category with the trained model
-predicted_category = getCategory(transaction, clf, vectorizer, label_encoder)
+predicted_category = getCategory(transaction_desc, clf, vectorizer, label_encoder)
 
 # Output the category
-print(f"The category for the transaction '{transaction['desc']}' is: {predicted_category}")
+print(f"The category for the transaction description '{transaction_desc}' is: {predicted_category}")
