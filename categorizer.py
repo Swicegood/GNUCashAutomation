@@ -38,7 +38,7 @@ def train_model(data):
     return clf, vectorizer, label_encoder
 
 
-bayes_data = import_map.getImportMap(account='Amex')
+bayes_data = import_map.getImportMap(account='American Express *1008')
 bayes_data_df = pd.DataFrame(bayes_data)
 # Train the model once and store the trained components
 clf, vectorizer, label_encoder = train_model(bayes_data_df)
@@ -66,10 +66,12 @@ def getCategory(transaction_desc, clf, vectorizer, label_encoder, confidence_thr
         return None
 
 # Example usage
-transaction_desc = "AMZN"
+transaction_desc = "SHELL"
 
 # Predict category with the trained model
 predicted_category = getCategory(transaction_desc, clf, vectorizer, label_encoder)
 
+predicted_account_name = import_map.getAccountNameFromGuid(predicted_category)
+
 # Output the category
-print(f"The category for the transaction description '{transaction_desc}' is: {predicted_category}")
+print(f"The category for the transaction description '{transaction_desc}' is: {predicted_account_name}")
