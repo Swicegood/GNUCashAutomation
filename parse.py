@@ -6,7 +6,7 @@ from filedialogs import getfile
 from ofxparse import OfxParser
 from decimal import Decimal
 from pdfreader import SimplePDFViewer
-
+from categorizer import TransactionCategorizer as categorizer
 
 def decimalize(value, precision='0.00', rounding=decimal.ROUND_HALF_UP):
     decimalized = Decimal(value)
@@ -32,6 +32,7 @@ def parse_paypal(filename):
     return parsed_data
 
 def parse_amex(filename):
+    amex_categorizer = categorizer(account='American Express *1008')
     parsed_data = []
     with open(filename, 'r') as data:
 
@@ -48,7 +49,7 @@ def parse_amex(filename):
                 line["type"] = "credit"
             print(line)
             parsed_data.append(line)
-    return parsed_data
+    return parsed_data, amex_categorizer
 
 def parse_xfx(filename):
     with open(filename) as fileobj:
@@ -131,22 +132,22 @@ def parse_accounts(filename):
 
 def parse_export(csvfile, data):
         if data[0]["account"] == "Checking" or data[0]["account"] == "2":
-            fieldnames = ["account", "date", "amount", "desc", "memo", "id", "tranfer_account"]
+            fieldnames = ["account", "date", "amount", "desc", "memo", "id", "transfer_account"]
             fieldnames_notrns = ["account", "date", "amount", "desc", "memo", "id"]
         if data[0]["account"] == "PayPal":
-            fieldnames = ["Time", "TimeZone", "Type", "Status", "Currency", "Receipt ID", "Balance", "account", "date", "amount", "Gross", "Tip", "Fee", "desc", "memo", "id", "tranfer_account"]
+            fieldnames = ["Time", "TimeZone", "Type", "Status", "Currency", "Receipt ID", "Balance", "account", "date", "amount", "Gross", "Tip", "Fee", "desc", "memo", "id", "transfer_account"]
             fieldnames_notrns = ["Time", "TimeZone", "Type", "Status", "Currency", "Receipt ID", "Balance", "account", "date", "amount", "Gross", "Tip", "Fee", "desc", "memo", "id"]
         if data[0]["account"] == "Amex":
-            fieldnames = ["Receipt", "account", "date", "amount", "memo", "desc", "id", "tranfer_account"]
+            fieldnames = ["Receipt", "account", "date", "amount", "memo", "desc", "id", "transfer_account"]
             fieldnames_notrns = ["Receipt", "account", "date", "amount", "memo", "desc", "id"]
         if data[0]["account"] == "PayPalPDF":
-            fieldnames = ["account", "date", "desc", "id", "amount", "memo", "tranfer_account"]
+            fieldnames = ["account", "date", "desc", "id", "amount", "memo", "transfer_account"]
             fieldnames_notrns = ["account", "date", "desc", "id", "amount", "memo"]
         fieldsline = str(fieldnames).strip("[]")
         csvfile.write(fieldsline+"\n")
         for line in data:
             try:
-                if line["tranfer_account"]:
+                if line["transfer_account"]:
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames, dialect="unix", quoting=csv.QUOTE_MINIMAL)   
                     writer.writerow(line)
             except:

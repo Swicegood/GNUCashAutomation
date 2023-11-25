@@ -11,7 +11,7 @@ from filedialogs import file_save, getfile
 import functools
 from PIL import ImageTk, Image
 import traceback
-import categorizer
+from import_map import getAccountNameFromGuid, getAccountObj
 
 ACCOUNTS_FILE = "accounts.csv"
 
@@ -97,7 +97,7 @@ class GnuCashApp(tk.Tk):
                 if self.pageframes["ImportTrxnFilePage"].bank.get() == "paypal":
                     self.transactions = parse_paypal(filename)
                 if self.pageframes["ImportTrxnFilePage"].bank.get() == "amex":
-                    self.transactions = parse_amex(filename)
+                    self.transactions, self.categorizer = parse_amex(filename)
                 if self.pageframes["ImportTrxnFilePage"].bank.get() == "paypalpdf":
                     self.transactions = parse_pdf(filename)
                     self.skip = True
@@ -261,7 +261,7 @@ class ListPage(ttk.Frame):
         acc_diag = AccountsDialog(controller=self, master=master, ACCOUNTS_FILE=ACCOUNTS_FILE)
 
     def set_account(self, value, master):
-        self.transactions[master]["tranfer_account"] = value
+        self.transactions[master]["transfer_account"] = value
         self.comlbls[master].config(text=value)
         self.changecolor(event=None, master=master, color="LIME.TLabel")
         self.green_lines.add(master)
@@ -273,18 +273,22 @@ class ListPage(ttk.Frame):
         self.green_lines.remove(master)
 
     def get_comment_text(self, description, memo, master):
-        transaction = {
-        "desc": description,
-        "memo": memo
-        }
+        transaction = {"desc": description, "memo": memo}
 
-        category = categorizer.getCategory(transaction, 
-                                           categorizer.clf, 
-                                           categorizer.vectorizer, 
-                                           categorizer.label_encoder)
-        if category:            
-            self.transactions[master]["tranfer_account"] = category
-            return category
+        category = app.categorizer.getCategory(transaction["desc"])
+        if category:
+            account_object = getAccountObj(category)
+            parent = account_object.parent
+            if parent:
+                account_name = getAccountNameFromGuid(parent.guid)
+                if account_name:
+                    account_name = account_name + ":" + getAccountNameFromGuid(account_object.guid)
+                else:
+                    account_name = getAccountNameFromGuid(account_object.guid)
+            else:
+                account_name = getAccountNameFromGuid(account_object.guid)
+            self.transactions[master]["transfer_account"] = account_name
+            return account_name
         else:
             return "New, UNBALANCED (need account to transfer "
             
@@ -328,6 +332,10 @@ class ListPage(ttk.Frame):
         self.Labelset.append(self.desclbls)
         self.Labelset.append(self.infolbls)
         self.Labelset.append(self.comlbls)
+        for i in range(len(transactions)):
+            if "transfer_account" in self.transactions[i].keys() and self.transactions[i]["transfer_account"] != "":
+                self.green_lines.add(i)
+                self.changecolor(event=None, master=i, color="LIME.TLabel")
 
 class StepsFrame(ttk.Frame):
 

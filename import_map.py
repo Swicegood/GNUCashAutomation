@@ -34,7 +34,7 @@ def updateMap(account_obj, bayes_item):
 
 def getAccountObj(account_name):
     for account in book.accounts:
-        if account_name in account.name:
+        if account_name in account.guid:
             return account
     
 def getAccountNameFromGuid(account_guid):

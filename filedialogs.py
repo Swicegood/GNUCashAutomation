@@ -9,10 +9,11 @@ def getfile():
     return filename
 
 def file_save():
-    name=filedialog.asksaveasfile(mode='r+',defaultextension=".ofx")
+    name=filedialog.asksaveasfile(mode="w", initialdir = "~/", defaultextension=".ofx")
     if name is None:
         return        
     return name
 
 if __name__ == "__main__":
-    file_save()
+    name = file_save()
+    print(name)

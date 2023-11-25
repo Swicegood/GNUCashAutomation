@@ -10,11 +10,15 @@ import re
 def ofx_export(file, transactions_list):
 
     def replace_bank_id_in_file(f):
-        f.seek(0)
-        content = f.read()
-        
-            # Replace the BANKID content
-        return re.sub(r'<BANKID>.*?</BANKID>', '<BANKID>084000026</BANKID>', content)
+        filepath = f.name
+        f.close()
+        with open(filepath, 'r+') as f:
+            f.seek(0)
+            content = f.read()            
+            f.write(re.sub(r'<BANKID>.*?</BANKID>', '<BANKID>084000026</BANKID>', content))
+            f.truncate()
+            print("Replaced bank id in file: " + filepath)
+            print("New content: " + content)
 
 
     def convert_decimal_to_string(data):
@@ -36,7 +40,7 @@ def ofx_export(file, transactions_list):
         'amount': itemgetter('amount'),
         'payee': itemgetter('desc'),
         'notes': itemgetter('memo'),
-        'class': itemgetter('tranfer_account'),
+        'class': itemgetter('transfer_account'),
         'type': itemgetter('type')
         }
     
@@ -52,10 +56,7 @@ def ofx_export(file, transactions_list):
         file.write(ofxline.decode("utf-8"))
 
     if transactions_list[0]["account"] == "Amex":
-        modified_content = replace_bank_id_in_file(file)
-        file.seek(0)
-        file.write(modified_content)
-        file.truncate()
+        replace_bank_id_in_file(file)
 
 if __name__ == "__main__":
     print("Not to be used as stand-alone program.")
