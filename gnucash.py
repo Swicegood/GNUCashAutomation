@@ -15,6 +15,16 @@ from import_map import getAccountNameFromGuid, getAccountObj
 
 ACCOUNTS_FILE = "accounts.csv"
 
+from enum import Enum
+
+class ProcessStep(Enum):
+    START = 1
+    IMPORT = 2
+    PAYPAL = 3
+    AMAZON = 4
+    MATCH = 5
+    SUMMARY = 6
+
 class GnuCashApp(tk.Tk):
 
     def __init__(self, *args, **kwargs):
@@ -63,7 +73,7 @@ class GnuCashApp(tk.Tk):
         self.skipbtn = ttk.Button(paneframe, text="Skip", command=self.skipstep)
         self.skipbtn.grid(column=1, row=1, sticky="e s")
         self.show_frame("ImportTrxnFilePage")
-        self.step = 2
+        self.step = ProcessStep.IMPORT.value
         self.skip = False
 
     def show_frame(self, page_name):
@@ -74,31 +84,35 @@ class GnuCashApp(tk.Tk):
     def skipstep(self):
         self.skip = True
         self.step += 1
-        if self.step > 6:
-            self.step = 1
+        if self.step > ProcessStep.SUMMARY.value:
+            self.step = ProcessStep.START.value
         self.nextstep()
         self.skip == False
         
+
+
     def nextstep(self):
         filename = ''
         savename = None
-        if self.step == 1:
+
+        if self.step == ProcessStep.START.value:
             self.show_frame("ImportTrxnFilePage")
             self.stepsframe_.startlbl.config(style="GREY.TLabel")
         else:
             self.stepsframe_.startlbl.config(style="BW.TLabel")
-        if self.step == 2:           
+
+        if self.step == ProcessStep.IMPORT.value:
             self.stepsframe_.importlbl.config(style="GREY.TLabel")
             self.transactions = []
             filename = getfile()
             if len(filename):
                 if self.pageframes["ImportTrxnFilePage"].bank.get() == "xfx":
                     self.transactions = parse_xfx(filename)
-                if self.pageframes["ImportTrxnFilePage"].bank.get() == "paypal":
+                elif self.pageframes["ImportTrxnFilePage"].bank.get() == "paypal":
                     self.transactions = parse_paypal(filename)
-                if self.pageframes["ImportTrxnFilePage"].bank.get() == "amex":
+                elif self.pageframes["ImportTrxnFilePage"].bank.get() == "amex":
                     self.transactions, self.categorizer = parse_amex(filename)
-                if self.pageframes["ImportTrxnFilePage"].bank.get() == "paypalpdf":
+                elif self.pageframes["ImportTrxnFilePage"].bank.get() == "paypalpdf":
                     self.transactions = parse_pdf(filename)
                     self.skip = True
                 for child in self.pageframes["StartPage"].winfo_children():
@@ -107,9 +121,10 @@ class GnuCashApp(tk.Tk):
                 self.pageframes["StartPage"].newlabel()
                 self.show_frame("StartPage")
                 app.title("Transaction Import Assistant  -- "+filename)
-        else:            
+        else:
             self.stepsframe_.importlbl.config(style="BW.TLabel")
-        if self.step == 3:
+
+        if self.step == ProcessStep.PAYPAL.value:
             self.stepsframe_.paypallbl.config(style="GREY.TLabel")
             filename = getfile()
             if len(filename):
@@ -119,44 +134,46 @@ class GnuCashApp(tk.Tk):
                 self.pageframes["StartPage"].newlabel()
         else:
             self.stepsframe_.paypallbl.config(style="BW.TLabel")
-        if self.step == 4:
+
+        if self.step == ProcessStep.AMAZON.value:
             self.stepsframe_.amazonlbl.config(style="GREY.TLabel")
             filename = getfile()
-            if len(filename):  #valid filename (not empty)
+            if len(filename):
                 self.pageframes["ListPage"].amazon_txns = []
                 self.pageframes["ListPage"].amazon_txns = parse_amazon(filename)
                 self.pageframes["StartPage"].setFilename(filename)
-                self.pageframes["StartPage"].newlabel()   
-        else:                       
+                self.pageframes["StartPage"].newlabel()
+        else:
             self.stepsframe_.amazonlbl.config(style="BW.TLabel")
-        if self.step == 5: 
-            self.stepsframe_.matchlbl.config(style="GREY.TLabel") 
-            self.pageframes["ListPage"].destroy
-            self.pageframes["ListPage"] == ListPage(parent=paneframe, controller=self)
+
+        if self.step == ProcessStep.MATCH.value:
+            self.stepsframe_.matchlbl.config(style="GREY.TLabel")
             self.show_frame("ListPage")
             self.pageframes["ListPage"].propagate_transactions(self.transactions)
             self.skipbtn.grid_remove()
         else:
-            self.skipbtn.grid(column=1, row=1, sticky="e s")            
+            self.skipbtn.grid(column=1, row=1, sticky="e s")
             self.stepsframe_.matchlbl.config(style="BW.TLabel")
-        if self.step == 6:
+
+        if self.step == ProcessStep.SUMMARY.value:
             self.stepsframe_.sumlbl.config(style="GREY.TLabel")
             self.show_frame("StartPage")
-            savename = file_save()            
+            savename = file_save()
             if savename:
-                if self.transactions:                
+                if self.transactions:
                     ofx_export(savename, self.transactions)
                     messagebox.showinfo("info", "SUCCESS! Transactions Exported to File.")
                 else:
                     messagebox.showinfo("info", "No Data to Write.")
         else:
             self.stepsframe_.sumlbl.config(style="BW.TLabel")
-       
-        # x = len(filename)  #len > 0 is valid filename        
-        if (filename and len(filename)) or savename  or self.step == 5 or self.step == 1:
-            self.step += 1   
-        if self.step > 6:
-            self.step = 0
+
+        if (filename and len(filename)) or savename or self.step in [ProcessStep.MATCH.value, ProcessStep.START.value]:
+            self.step += 1
+
+        if self.step > ProcessStep.SUMMARY.value:
+            self.step = ProcessStep.START.value
+
         
         def show_error(self, *args):
             err = traceback.format_exception(*args)
