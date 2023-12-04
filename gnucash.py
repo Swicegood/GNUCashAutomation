@@ -87,7 +87,7 @@ class GnuCashApp(tk.Tk):
         if self.step > ProcessStep.SUMMARY.value:
             self.step = ProcessStep.START.value
         self.nextstep()
-        self.skip == False
+        self.skip = False
         
 
 
@@ -126,23 +126,25 @@ class GnuCashApp(tk.Tk):
 
         if self.step == ProcessStep.PAYPAL.value:
             self.stepsframe_.paypallbl.config(style="GREY.TLabel")
-            filename = getfile()
-            if len(filename):
-                self.pageframes["ListPage"].paypal_txns = []
-                self.pageframes["ListPage"].paypal_txns = parse_pdf(filename)
-                self.pageframes["StartPage"].setFilename(filename)
-                self.pageframes["StartPage"].newlabel()
+            if not self.skip:
+                filename = getfile()
+                if len(filename):
+                    self.pageframes["ListPage"].paypal_txns = []
+                    self.pageframes["ListPage"].paypal_txns = parse_pdf(filename)
+                    self.pageframes["StartPage"].setFilename(filename)
+                    self.pageframes["StartPage"].newlabel()
         else:
             self.stepsframe_.paypallbl.config(style="BW.TLabel")
 
         if self.step == ProcessStep.AMAZON.value:
             self.stepsframe_.amazonlbl.config(style="GREY.TLabel")
-            filename = getfile()
-            if len(filename):
-                self.pageframes["ListPage"].amazon_txns = []
-                self.pageframes["ListPage"].amazon_txns = parse_amazon(filename)
-                self.pageframes["StartPage"].setFilename(filename)
-                self.pageframes["StartPage"].newlabel()
+            if not self.skip:
+                filename = getfile()
+                if len(filename):
+                    self.pageframes["ListPage"].amazon_txns = []
+                    self.pageframes["ListPage"].amazon_txns = parse_amazon(filename)
+                    self.pageframes["StartPage"].setFilename(filename)
+                    self.pageframes["StartPage"].newlabel()
         else:
             self.stepsframe_.amazonlbl.config(style="BW.TLabel")
 
@@ -168,7 +170,9 @@ class GnuCashApp(tk.Tk):
         else:
             self.stepsframe_.sumlbl.config(style="BW.TLabel")
 
-        if (filename and len(filename)) or savename or self.step in [ProcessStep.MATCH.value, ProcessStep.START.value]:
+        if ((filename and len(filename)) 
+            or savename 
+            or self.step in [ProcessStep.MATCH.value, ProcessStep.START.value]):
             self.step += 1
 
         if self.step > ProcessStep.SUMMARY.value:
