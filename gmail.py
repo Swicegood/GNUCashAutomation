@@ -6,7 +6,9 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google.auth.exceptions import RefreshError
 import socket
+
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
@@ -44,7 +46,16 @@ def grab_emails(search_str):
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+            try:
+                creds.refresh(Request())
+            except RefreshError:
+                os.remove('token.json')  # Remove the invalid token
+                flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+                try:
+                    creds = run_flow_with_timeout(flow, timeout=30)  # 60 seconds timeout
+                except (TimeoutError, ValueError) as e:
+                    print(e)
+                    return []  # or handle the exception as needed
         else:
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
             try:
