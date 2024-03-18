@@ -3,3 +3,4 @@ token.json
 credentialsold.json
 transactions.ofx
 *.pyc
+*.csv
