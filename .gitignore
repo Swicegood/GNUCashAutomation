@@ -4,3 +4,4 @@ credentialsold.json
 transactions.ofx
 *.pyc
 *.csv
+*.pdf
